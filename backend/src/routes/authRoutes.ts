@@ -1,9 +1,20 @@
 import { Router, Request, Response } from "express";
+import authMiddleware from "../middleware/authMiddleware";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User";
 
 const router = Router(); // 👈 Upewnij się, że używasz Router() zamiast express()
+
+interface AuthRequest extends Request {
+  user?: any;
+}
+
+declare module "express-serve-static-core" {
+  interface Request {
+    user?: any;
+  }
+}
 
 router.post("/register", async (req: Request, res: Response): Promise<any> => {
   try {
@@ -40,6 +51,10 @@ router.post("/login", async (req: Request, res: Response): Promise<any> => {
   } catch (error) {
     return res.status(500).json({ message: "Server error", error });
   }
+});
+
+router.get("/me", authMiddleware, async (req, res) => {
+  res.json(req.user);
 });
 
 export default router;
