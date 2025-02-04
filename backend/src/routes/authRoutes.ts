@@ -16,24 +16,35 @@ declare module "express-serve-static-core" {
   }
 }
 
-router.post("/register", async (req: Request, res: Response): Promise<any> => {
+// routes/authRoutes.ts
+router.post("/login", async (req: Request, res: Response): Promise<any> => {
   try {
-    const { username, email, password } = req.body;
+    const { email, password } = req.body;
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) return res.status(400).json({ message: "Email already in use" });
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: "Invalid credentials" });
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
 
-    const newUser = new User({ username, email, password: hashedPassword });
-    await newUser.save();
+    const accessToken = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET as string,
+      { expiresIn: "15m" }
+    );
 
-    return res.status(201).json({ message: "User registered successfully" });
+    const refreshToken = jwt.sign(
+      { id: user._id },
+      process.env.REFRESH_SECRET as string,
+      { expiresIn: "7d" }
+    );
+
+    res.json({ accessToken, refreshToken });
   } catch (error) {
-    return res.status(500).json({ message: "Server error", error });
+    res.status(500).json({ message: "Server error", error });
   }
 });
+
 
 router.post("/login", async (req: Request, res: Response): Promise<any> => {
   try {
@@ -50,6 +61,39 @@ router.post("/login", async (req: Request, res: Response): Promise<any> => {
     return res.json({ token, user: { id: user._id, username: user.username, email: user.email } });
   } catch (error) {
     return res.status(500).json({ message: "Server error", error });
+  }
+});
+
+// routes/authRoutes.ts
+router.post("/refresh", async (req: Request, res: Response): Promise<any> => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) return res.status(401).json({ message: "No refresh token provided" });
+
+  try {
+    const decoded: any = jwt.verify(refreshToken, process.env.REFRESH_SECRET as string);
+
+    const user = await User.findById(decoded.id);
+    if (!user) return res.status(401).json({ message: "Invalid refresh token" });
+
+    const newAccessToken = jwt.sign(
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET as string,
+      { expiresIn: "15m" }
+    );
+
+    res.json({ accessToken: newAccessToken });
+  } catch (error) {
+    res.status(403).json({ message: "Invalid or expired refresh token" });
+  }
+});
+
+router.get("/profile", authMiddleware, async (req: any, res) => {
+  try {
+    const user = req.user;
+    res.json({ username: user.username, email: user.email, role: user.role });
+  } catch (error) {
+    res.status(500).json({ message: "Błąd serwera" });
   }
 });
 

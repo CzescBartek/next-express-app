@@ -8,24 +8,19 @@ interface AuthRequest extends Request {
 }
 
 const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction): Promise<any> => {
+  const token = req.header("Authorization")?.replace("Bearer ", "");
+  if (!token) return res.status(401).json({ message: "Access denied. No token provided." });
+
   try {
-    const token = req.header("Authorization")?.replace("Bearer ", "");
-    if (!token) {
-      return res.status(401).json({ message: "Access denied. No token provided." });
-    }
-
     const decoded: any = jwt.verify(token, process.env.JWT_SECRET as string);
-    const user = await User.findById(decoded.id).select("-password");
+    req.user = await User.findById(decoded.id).select("-password");
+    if (!req.user) return res.status(401).json({ message: "Invalid token." });
 
-    if (!user) {
-      return res.status(401).json({ message: "Invalid token." });
-    }
-
-    req.user = user;
-    next(); // Przechodzi do kolejnego middleware lub kontrolera
+    next();
   } catch (error) {
-    return res.status(400).json({ message: "Invalid token." });
+    res.status(400).json({ message: "Invalid token." });
   }
 };
 
 export default authMiddleware;
+
