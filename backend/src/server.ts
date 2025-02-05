@@ -4,6 +4,8 @@ import cors from "cors";
 import mongoose from "mongoose";
 import authRoutes from "./routes/authRoutes"; // 👈 Sprawdź ścieżkę!
 
+
+
 dotenv.config();
 const app = express();
 

@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../models/User";
 
-const router = Router(); // 👈 Upewnij się, że używasz Router() zamiast express()
+const router = Router();
 
 interface AuthRequest extends Request {
   user?: any;
@@ -16,7 +16,48 @@ declare module "express-serve-static-core" {
   }
 }
 
-// routes/authRoutes.ts
+// ✅ Sprawdzenie działania serwera
+router.get("/", async (req: Request, res: Response): Promise<any> => {
+  return res.send("Server is running!");
+});
+
+// ✅ REJESTRACJA NOWEGO UŻYTKOWNIKA
+router.post("/register", async (req: Request, res: Response): Promise<any> => {
+  try {
+    const { email, password, name } = req.body;
+
+    // Sprawdzenie, czy użytkownik już istnieje
+    const existingUser = await User.findOne({ email });
+    if (existingUser) return res.status(400).json({ message: "User already exists" });
+
+    // Hashowanie hasła
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    // Tworzenie użytkownika
+    const newUser = new User({ email, password: hashedPassword, name });
+    await newUser.save();
+
+    // Generowanie tokenów
+    const accessToken = jwt.sign(
+      { id: newUser._id, role: newUser.role },
+      process.env.JWT_SECRET as string,
+      { expiresIn: "15m" }
+    );
+
+    const refreshToken = jwt.sign(
+      { id: newUser._id },
+      process.env.REFRESH_SECRET as string,
+      { expiresIn: "7d" }
+    );
+
+    return res.status(201).json({ accessToken, refreshToken, user: { id: newUser._id, email, name } });
+  } catch (error) {
+    return res.status(500).json({ message: "Server error", error });
+  }
+});
+
+// ✅ LOGOWANIE UŻYTKOWNIKA
 router.post("/login", async (req: Request, res: Response): Promise<any> => {
   try {
     const { email, password } = req.body;
@@ -39,35 +80,15 @@ router.post("/login", async (req: Request, res: Response): Promise<any> => {
       { expiresIn: "7d" }
     );
 
-    res.json({ accessToken, refreshToken });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error });
-  }
-});
-
-
-router.post("/login", async (req: Request, res: Response): Promise<any> => {
-  try {
-    const { email, password } = req.body;
-
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "Invalid credentials" });
-
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
-
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET as string, { expiresIn: "1h" });
-
-    return res.json({ token, user: { id: user._id, username: user.username, email: user.email } });
+    return res.json({ accessToken, refreshToken, user: { id: user._id, email, name: user.name } });
   } catch (error) {
     return res.status(500).json({ message: "Server error", error });
   }
 });
 
-// routes/authRoutes.ts
+// ✅ ODŚWIEŻANIE TOKENA
 router.post("/refresh", async (req: Request, res: Response): Promise<any> => {
   const { refreshToken } = req.body;
-
   if (!refreshToken) return res.status(401).json({ message: "No refresh token provided" });
 
   try {
@@ -82,23 +103,27 @@ router.post("/refresh", async (req: Request, res: Response): Promise<any> => {
       { expiresIn: "15m" }
     );
 
-    res.json({ accessToken: newAccessToken });
+    return res.json({ accessToken: newAccessToken });
   } catch (error) {
-    res.status(403).json({ message: "Invalid or expired refresh token" });
+    return res.status(403).json({ message: "Invalid or expired refresh token" });
   }
 });
 
-router.get("/profile", authMiddleware, async (req: any, res) => {
+// ✅ PROFIL UŻYTKOWNIKA
+router.get("/profile", authMiddleware, async (req: AuthRequest, res): Promise<any> => {
   try {
     const user = req.user;
-    res.json({ username: user.username, email: user.email, role: user.role });
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    return res.json({ name: user.name, email: user.email, role: user.role });
   } catch (error) {
-    res.status(500).json({ message: "Błąd serwera" });
+    return res.status(500).json({ message: "Server error" });
   }
 });
 
-router.get("/me", authMiddleware, async (req, res) => {
-  res.json(req.user);
+// ✅ ZWROT AKTUALNEGO UŻYTKOWNIKA
+router.get("/me", authMiddleware, async (req, res): Promise<any> => {
+  return res.json(req.user);
 });
 
 export default router;

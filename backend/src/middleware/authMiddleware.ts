@@ -6,6 +6,13 @@ import User from "../models/User";
 interface AuthRequest extends Request {
   user?: any;
 }
+declare global {
+  namespace Express {
+    interface Request {
+      user?: any;
+    }
+  }
+}
 
 const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction): Promise<any> => {
   const token = req.header("Authorization")?.replace("Bearer ", "");

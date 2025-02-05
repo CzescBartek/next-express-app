@@ -2,6 +2,7 @@ import { useState, useContext } from "react";
 import { useRouter } from "next/router";
 import { AuthContext } from "@/context/AuthContext";
 
+
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

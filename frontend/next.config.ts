@@ -1,7 +1,8 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  /* config options here */
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    appDir: true, // Upewnij się, że to jest włączone
+  },
 };
 
-export default nextConfig;
+module.exports = nextConfig;
