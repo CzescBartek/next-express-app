@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
+import Link from 'next/link'
+
 
 const Register = () => {
   const [username, setUsername] = useState("");
@@ -70,9 +72,9 @@ const Register = () => {
         </form>
         <p className="mt-4 text-center">
           Masz już konto?{" "}
-          <a href="/login" className="text-blue-500 hover:underline">
+          <Link href="/login" className="text-blue-500 hover:underline">
             Zaloguj się
-          </a>
+          </Link>
         </p>
       </div>
     </div>

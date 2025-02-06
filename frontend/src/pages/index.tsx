@@ -1,21 +1,21 @@
-// pages/index.tsx (Next.js 13- z Page Router)
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 
 export default function Home() {
   const router = useRouter();
+  const [isAuth, setIsAuth] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const token = localStorage.getItem("accessToken"); // 👈 poprawione
     if (!token) {
       router.push("/login");
+    } else {
+      setIsAuth(true);
     }
-  }, []);
+  }, [router]);
+   // Teraz router jest w zależnościach, więc efekt może się odświeżać
 
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen">
-      <h1 className="text-3xl font-bold">Witaj na stronie głównej!</h1>
-      <p className="text-gray-600">Zaloguj się, aby zobaczyć swój profil.</p>
-    </div>
-  );
+  if (!isAuth) return <p>Ładowanie...</p>; // Zabezpieczenie przed chwilowym wyświetlaniem pustej strony
+
+  return <h1>Witaj na stronie głównej!</h1>;
 }
